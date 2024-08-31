@@ -5,7 +5,8 @@ from PyQt5.QtGui import QFont
 from .title_bar import create_title_bar
 from .image_label import create_image_label
 from .timeSection import create_clock_frame
-from .fetchDataFromFile import fetch_and_update_rfid  # Import the fetch function
+from .fetchDataFromFile import fetch_and_update_rfid 
+from .fetchDataFromFile import handle_exit_button_click
 
 class FullScreenWindow(QWidget):
     def __init__(self):
@@ -34,11 +35,13 @@ class FullScreenWindow(QWidget):
 
         # Remove the default title bar
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.showMaximized()
+        
+        # Open the window in full screen mode
+        self.showFullScreen()
 
         # Main layout with margins
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(20, 10, 20, 10)  # Add margins: left, top, right, bottom
+        main_layout.setContentsMargins(20, 0, 20, 10)  # Add margins: left, top, right, bottom
         main_layout.setSpacing(10)  # Add spacing between elements
         self.setLayout(main_layout)  # Set the layout for the window
 
@@ -50,12 +53,26 @@ class FullScreenWindow(QWidget):
         content_layout = self.create_content_layout()
         main_layout.addLayout(content_layout)
 
-        # Create and add the exit button
+        # Create and add the button layout (for 'Exit Vehicle' and 'Clear' buttons)
+        button_layout = QHBoxLayout()  # Horizontal layout for buttons
         self.exit_button = self.create_exit_button()
-        main_layout.addWidget(self.exit_button, alignment=Qt.AlignLeft | Qt.AlignBottom)
+        self.clear_button = self.create_clear_button()
+
+        button_layout.addWidget(self.exit_button)
+        button_layout.addWidget(self.clear_button)
+
+        # Create a layout to hold the buttons at the bottom-right corner
+        button_container_layout = QHBoxLayout()
+        button_container_layout.addStretch()  # Pushes the buttons to the right
+        button_container_layout.addLayout(button_layout)  # Adds the button layout to the right
+
+        # Add the button container layout to the main layout, aligned to the bottom
+        main_layout.addLayout(button_container_layout)
 
         # After the window is fully loaded, update the RFID Tag
         QTimer.singleShot(1000, self.update_rfid_tag)  # Delay to ensure everything is loaded
+
+
 
     def create_content_layout(self):
         """Creates and returns the main content layout."""
@@ -207,7 +224,7 @@ class FullScreenWindow(QWidget):
 
         # Add the image label
         image_label = create_image_label(self)
-        image_label.setFixedSize(250, 200)  # Set size for the image
+        image_label.setFixedSize(300, 200)  # Set size for the image
         image_clock_layout.addWidget(image_label, 0, Qt.AlignCenter)
 
         # Create and add the digital clock frame using the imported function
@@ -236,7 +253,7 @@ class FullScreenWindow(QWidget):
         status_layout.setContentsMargins(10, 10, 10, 10)
 
         # Status label (inside the frame)
-        self.status_label = QLabel("Waiting")
+        self.status_label = QLabel("Waiting...")
         self.status_label.setFont(QFont("Arial", 16, QFont.Bold))
         status_layout.addWidget(self.status_label, alignment=Qt.AlignLeft)
 
@@ -298,9 +315,47 @@ class FullScreenWindow(QWidget):
         button.clicked.connect(self.on_exit_button_clicked)  # Connect button click to a slot
         return button
     
+    
     def on_exit_button_clicked(self):
         """Slot function triggered when the exit button is clicked."""
-        print("Exit button clicked!")
+        rfid_tag = self.rfid_input_left.text()  # Get the RFID tag from the left input (or right, they should be the same)
+
+        # Call the function from fetchDataFromFile.py
+        handle_exit_button_click(rfid_tag, self.vehicle_info, self.status_label, self.indicator_label, self)
+
+    def create_clear_button(self):
+        """Creates and returns the clear button."""
+        button = QPushButton("Clear", self)
+        button.setFont(QFont("Arial", 14, QFont.Bold))
+        button.setFixedSize(150, 50)
+        button.setEnabled(True)  # Enabled by default
+        button.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;  /* Red color */
+                color: white;
+                border-radius: 10px;
+            }
+        """)
+        button.clicked.connect(self.on_clear_button_clicked)  # Connect button click to a slot
+        return button
+
+    def on_clear_button_clicked(self):
+        """Slot function triggered when the clear button is clicked."""
+        # Clear all the text boxes
+        for key, textbox in self.vehicle_info.items():
+            textbox.clear()
+        
+        self.rfid_input_left.clear()
+        self.rfid_input_right.clear()
+
+        # Reset the status label and indicator
+        self.status_label.setText("Waiting...")
+        self.indicator_label.setStyleSheet("background-color: grey; border-radius: 10px;")
+
+        # Clear the contents of the readVehicle.txt file
+        with open("app/file/readVehicle.txt", "w") as file:
+            file.write("")  # Clear the file by writing an empty string
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

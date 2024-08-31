@@ -96,7 +96,7 @@ def check_vehicle_registration_in_db(rfid_tag, status_label, indicator_label, ve
         session.close()
 
 def check_vehicle_in_out_status(rfid_tag, status_label, indicator_label, vehicle_info, window):
-    """Checks the RFID Tag in the VehicleInOut table to determine vehicle exit status and weighbridge data completeness."""
+    """Checks the RFID Tag in the VehicleInOut table to determine vehicle exit status and fetch weighbridge data."""
     session = create_session()
     try:
         # Query the VehicleInOut table for the latest entry for the given RFID Tag
@@ -104,35 +104,84 @@ def check_vehicle_in_out_status(rfid_tag, status_label, indicator_label, vehicle
 
         if not record or not record.dateIn or not record.timeIn:
             # If no entry found or if dateIn and timeIn are not present, vehicle did not enter
-            status_label.setText("Vehicle didn't in")
+            status_label.setText("Vehicle didn't enter")
+            indicator_label.setStyleSheet("background-color: red; border-radius: 10px;")
+            window.exit_button.setEnabled(False)  # Disable the button
+        elif record.dateOut and record.timeOut:
+            # If the record already has DateOut and TimeOut, it means the vehicle has already exited
+            status_label.setText("Vehicle Already Out")
             indicator_label.setStyleSheet("background-color: red; border-radius: 10px;")
             window.exit_button.setEnabled(False)  # Disable the button
         else:
-            # Check that Gross, Tare, Net, and Challan No fields are not empty
-            gross = vehicle_info['gross'].text()
-            tare = vehicle_info['tare'].text()
-            net = vehicle_info['net'].text()
-            challan_no = vehicle_info['challanNo'].text()
+            # Populate the gross, tare, net, and challanNo fields if they are available
+            if record.gross:
+                vehicle_info['gross'].setText(str(record.gross))
+            if record.tare:
+                vehicle_info['tare'].setText(str(record.tare))
+            if record.net:
+                vehicle_info['net'].setText(str(record.net))
+            if record.challanNo:
+                vehicle_info['challanNo'].setText(record.challanNo)
 
-            if not gross or not tare or not net or not challan_no:
-                # If any of these fields are empty, indicate that weighbridge data is incomplete
-                status_label.setText("Weighbridge data remaining")
-                indicator_label.setStyleSheet("background-color: yellow; border-radius: 10px;")
-                window.exit_button.setEnabled(False)  # Disable the button
-            else:
+            # Check if all required fields are present
+            if record.gross and record.tare and record.net and record.challanNo:
                 # If all required fields are present, allow the vehicle to exit
-                record.dateOut = datetime.utcnow().strftime("%Y-%m-%d")
-                record.timeOut = datetime.utcnow().strftime("%H:%M:%S")
-                session.commit()
-
-                status_label.setText("Allow Vehicle to Out")
+                status_label.setText("Allow Vehicle to Exit")
                 indicator_label.setStyleSheet("background-color: green; border-radius: 10px;")
                 window.exit_button.setEnabled(True)  # Enable the button
+            else:
+                # If any of these fields are empty, indicate that weighbridge data is incomplete
+                status_label.setText("Weighbridge data incomplete")
+                indicator_label.setStyleSheet("background-color: yellow; border-radius: 10px;")
+                window.exit_button.setEnabled(False)  # Disable the button
 
     except Exception as e:
-        status_label.setText("Error Handling Vehicle Out")
+        status_label.setText("Error Handling Vehicle Exit")
         indicator_label.setStyleSheet("background-color: red; border-radius: 10px;")
         window.exit_button.setEnabled(False)  # Disable the button in case of error
         print(f"Error: {e}")
     finally:
         session.close()
+
+
+def handle_exit_button_click(rfid_tag, vehicle_info, status_label, indicator_label, window):
+    """Handles the exit button click event: save DateOut and TimeOut, clear text boxes, and disable the button."""
+    if rfid_tag:
+        session = create_session()
+        try:
+            # Query the VehicleInOut table for the latest entry for the given RFID Tag
+            record = session.query(VehicleInOut).filter_by(rfidTag=rfid_tag).order_by(VehicleInOut.createdAt.desc()).first()
+
+            if record and record.dateIn and record.timeIn:
+                # Save the current date and time as DateOut and TimeOut
+                record.dateOut = datetime.utcnow().strftime("%Y-%m-%d")
+                record.timeOut = datetime.utcnow().strftime("%H:%M:%S")
+                session.commit()
+
+                # Clear all the text boxes
+                for key, textbox in vehicle_info.items():
+                    textbox.clear()
+                
+                window.rfid_input_left.clear()
+                window.rfid_input_right.clear()
+
+                # Disable the exit button until next RFID tag is entered
+                window.exit_button.setEnabled(False)
+
+                # Reset the status label and indicator
+                status_label.setText("Waiting for next vehicle")
+                indicator_label.setStyleSheet("background-color: grey; border-radius: 10px;")
+
+                print("Exit data saved successfully!")
+
+                # Clear the contents of the readVehicle.txt file
+                with open("app/file/readVehicle.txt", "w") as file:
+                    file.write("")  # Clear the file by writing an empty string
+            else:
+                print("No valid entry found for the provided RFID Tag.")
+        except Exception as e:
+            print(f"Error during saving exit data: {e}")
+        finally:
+            session.close()
+    else:
+        print("RFID Tag is missing or invalid.")
