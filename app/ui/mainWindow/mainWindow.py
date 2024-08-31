@@ -297,7 +297,7 @@ class FullScreenWindow(QWidget):
 
     def create_exit_button(self):
         """Creates and returns the exit button."""
-        button = QPushButton("Exit Vehicle", self)
+        button = QPushButton("Open Barrier", self)
         button.setFont(QFont("Arial", 14, QFont.Bold))
         button.setFixedSize(150, 50)
         button.setEnabled(False)  # Initially disabled
