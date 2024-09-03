@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFormLayout, QFrame, QPushButton
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFormLayout, QFrame, QPushButton, QDialog
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
 from .title_bar import create_title_bar
@@ -7,6 +7,7 @@ from .image_label import create_image_label
 from .timeSection import create_clock_frame
 from .fetchDataFromFile import fetch_and_update_rfid 
 from .fetchDataFromFile import handle_exit_button_click
+from app.ui.mainWindow.fileScan import FileScanDialog
 
 class FullScreenWindow(QWidget):
     def __init__(self):
@@ -53,13 +54,15 @@ class FullScreenWindow(QWidget):
         content_layout = self.create_content_layout()
         main_layout.addLayout(content_layout)
 
-        # Create and add the button layout (for 'Exit Vehicle' and 'Clear' buttons)
+        # Create and add the button layout (for 'Exit Vehicle', 'Clear', and 'Force Open Barrier' buttons)
         button_layout = QHBoxLayout()  # Horizontal layout for buttons
         self.exit_button = self.create_exit_button()
         self.clear_button = self.create_clear_button()
+        self.force_open_button = self.create_force_open_button()  # New Force Open Barrier button
 
         button_layout.addWidget(self.exit_button)
         button_layout.addWidget(self.clear_button)
+        button_layout.addWidget(self.force_open_button)  # Add the new button to the layout
 
         # Create a layout to hold the buttons at the bottom-right corner
         button_container_layout = QHBoxLayout()
@@ -69,10 +72,25 @@ class FullScreenWindow(QWidget):
         # Add the button container layout to the main layout, aligned to the bottom
         main_layout.addLayout(button_container_layout)
 
+        # Add the copyright notice below the buttons in two lines
+        copyright_label_line1 = QLabel("Copyright laws vary around the world, and there is no global version of copyright,", self)
+        copyright_label_line2 = QLabel("but many countries are part of the Starlabs Technologo Pvt. Ltd., which deals with protecting original works and the authors’ rights over them.", self)
+
+        # Center align the text
+        copyright_label_line1.setAlignment(Qt.AlignCenter)
+        copyright_label_line2.setAlignment(Qt.AlignCenter)
+
+        # Set font for the labels
+        font = QFont("Arial", 10)
+        copyright_label_line1.setFont(font)
+        copyright_label_line2.setFont(font)
+
+        # Add the labels to the main layout
+        main_layout.addWidget(copyright_label_line1)
+        main_layout.addWidget(copyright_label_line2)
+
         # After the window is fully loaded, update the RFID Tag
-        QTimer.singleShot(1000, self.update_rfid_tag)  # Delay to ensure everything is loaded
-
-
+        QTimer.singleShot(1000, self.update_rfid_tag)
 
     def create_content_layout(self):
         """Creates and returns the main content layout."""
@@ -138,7 +156,21 @@ class FullScreenWindow(QWidget):
         left_form_layout.addRow(QLabel(""))
         left_form_layout.addRow(status_frame)
 
+        # Add the image label below the status layout
+        image_label = create_image_label(self)
+        image_label.setFixedSize(400, 150)  # Set size for the image
+
+        # Center the image label using a horizontal layout
+        image_layout = QHBoxLayout()
+        image_layout.addStretch()
+        image_layout.addWidget(image_label)
+        image_layout.addStretch()
+
+        # Add the image layout to the form layout
+        left_form_layout.addRow(image_layout)
+
         return left_form_layout
+
 
     def create_right_form_layout(self):
         """Creates and returns the right form layout."""
@@ -222,11 +254,6 @@ class FullScreenWindow(QWidget):
         image_clock_layout = QVBoxLayout()
         image_clock_layout.setSpacing(10)  # Add spacing between the image and clock
 
-        # Add the image label
-        image_label = create_image_label(self)
-        image_label.setFixedSize(300, 200)  # Set size for the image
-        image_clock_layout.addWidget(image_label, 0, Qt.AlignCenter)
-
         # Create and add the digital clock frame using the imported function
         clock_frame = create_clock_frame(self)
         image_clock_layout.addWidget(clock_frame, 0, Qt.AlignCenter)
@@ -267,6 +294,7 @@ class FullScreenWindow(QWidget):
 
         return status_frame
 
+
     def setup_text_boxes(self, text_boxes):
         """Set properties for a list of text boxes."""
         text_box_width = 250  # Set a consistent width for all text boxes
@@ -283,12 +311,13 @@ class FullScreenWindow(QWidget):
         return separator
 
     def update_rfid_tag(self):
-        """Fetches the RFID tag from the file and updates the text boxes."""
+        """Uses the RFID tag from the text box and updates the status and vehicle info."""
+        rfid_tag = self.rfid_input_left.text()  # Get the RFID tag directly from the text box
+
+        # Call fetch_and_update_rfid with the text from the text box
         fetch_and_update_rfid(
-            "app/file/readVehicle.txt", 
-            self.rfid_input_left, 
-            self.rfid_input_right, 
-            self.status_label, 
+            rfid_tag,  # Directly pass the RFID tag text
+            self.status_label,
             self.indicator_label,
             self.vehicle_info,
             self  # Pass the FullScreenWindow instance
@@ -355,6 +384,41 @@ class FullScreenWindow(QWidget):
         # Clear the contents of the readVehicle.txt file
         with open("app/file/readVehicle.txt", "w") as file:
             file.write("")  # Clear the file by writing an empty string
+
+    def create_force_open_button(self):
+        """Creates and returns the Force Open Barrier button."""
+        button = QPushButton("Force Open Barrier", self)
+        button.setFont(QFont("Arial", 14, QFont.Bold))
+        button.setFixedSize(200, 50)  # Adjust the size as needed
+        button.setEnabled(True)  # Enabled by default
+        button.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;  /* Orange color */
+                color: white;
+                border-radius: 10px;
+            }
+        """)
+        button.clicked.connect(self.on_force_open_button_clicked)  # Connect button click to a slot
+        return button
+
+
+    def on_force_open_button_clicked(self):
+        """Slot function triggered when the Force Open Barrier button is clicked."""
+        # Implement the logic to force open the barrier
+        print("Force Open Barrier button clicked")
+
+    def show_file_scan_dialog(self):
+        dialog = FileScanDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            selected_file_content = dialog.get_selected_file_content()
+            self.rfid_input_left.setText(selected_file_content)
+            print("File content set to rfid_input_left.")
+            
+            # Call the update method to process the RFID data
+            self.update_rfid_tag()  # This will now process the newly set RFID tag
+        else:
+            print("Dialog canceled")
+            
 
 
 if __name__ == '__main__':

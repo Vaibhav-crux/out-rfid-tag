@@ -1,5 +1,3 @@
-# app/ui/mainWindow/fetchDataFromFile.py
-
 from datetime import datetime
 from sqlalchemy.orm.exc import NoResultFound
 from app.config.refreshSession import create_session
@@ -7,27 +5,18 @@ from app.model.allotedTags import AllotedTags
 from app.model.vehicleRegistration import VehicleRegistration
 from app.model.vehicleInOut import VehicleInOut
 
-def fetch_and_update_rfid(file_path, rfid_input_left, rfid_input_right, status_label, indicator_label, vehicle_info, window):
-    """Fetches the RFID tag from the specified file and updates the provided text boxes."""
-    rfid_tag = read_rfid_from_file(file_path)
+def fetch_and_update_rfid(rfid_tag, status_label, indicator_label, vehicle_info, window):
+    """Processes the RFID tag and updates the provided text boxes."""
     if rfid_tag:
-        rfid_input_left.setText(rfid_tag)
-        rfid_input_right.setText(rfid_tag)
         # After setting the RFID Tag, check its status in the AllotedTags table
         if not check_rfid_status_in_db(rfid_tag, status_label, indicator_label):
             # If RFID Tag is valid and not blacklisted, check in the VehicleRegistration table
             if check_vehicle_registration_in_db(rfid_tag, status_label, indicator_label, vehicle_info):
                 # If vehicle is registered and validity is okay, check VehicleInOut table
                 check_vehicle_in_out_status(rfid_tag, status_label, indicator_label, vehicle_info, window)
-
-def read_rfid_from_file(file_path):
-    """Reads the RFID tag from the specified file."""
-    try:
-        with open(file_path, "r") as file:
-            return file.readline().strip()  # Read the first line and strip any extra whitespace
-    except FileNotFoundError:
-        print(f"RFID file not found: {file_path}")
-        return ""
+    else:
+        status_label.setText("No RFID tag provided")
+        indicator_label.setStyleSheet("background-color: red; border-radius: 10px;")
 
 def check_rfid_status_in_db(rfid_tag, status_label, indicator_label):
     """Checks the RFID Tag in the AllotedTags table and updates the status label and indicator."""
@@ -63,7 +52,7 @@ def check_vehicle_registration_in_db(rfid_tag, status_label, indicator_label, ve
         validity_till_date = datetime.strptime(record.validityTill, "%d/%m/%Y").date()  # Adjusted date format
 
         if validity_till_date < current_date:
-            status_label.setText("Vehicle Validity Expire")
+            status_label.setText("Vehicle Validity Expired")
             indicator_label.setStyleSheet("background-color: red; border-radius: 10px;")
             return False  # RFID found but validity expired
 
@@ -72,9 +61,6 @@ def check_vehicle_registration_in_db(rfid_tag, status_label, indicator_label, ve
         vehicle_info['vehicleNumberLeft'].setText(record.vehicleNumber)
         vehicle_info['validityTillLeft'].setText(record.validityTill)
 
-        # vehicle_info['typeOfVehicleRight'].setText(record.typeOfVehicle.name)
-        # vehicle_info['vehicleNumberRight'].setText(record.vehicleNumber)
-        # vehicle_info['doNumber'].setText(record.doNumber)
         vehicle_info['transporter'].setText(record.transporter)
         vehicle_info['driverOwner'].setText(record.driverOwner)
         vehicle_info['weighbridgeNo'].setText(record.weighbridgeNo)
@@ -143,7 +129,6 @@ def check_vehicle_in_out_status(rfid_tag, status_label, indicator_label, vehicle
     finally:
         session.close()
 
-
 def handle_exit_button_click(rfid_tag, vehicle_info, status_label, indicator_label, window):
     """Handles the exit button click event: save DateOut and TimeOut, clear text boxes, and disable the button."""
     if rfid_tag:
@@ -173,10 +158,6 @@ def handle_exit_button_click(rfid_tag, vehicle_info, status_label, indicator_lab
                 indicator_label.setStyleSheet("background-color: grey; border-radius: 10px;")
 
                 print("Exit data saved successfully!")
-
-                # Clear the contents of the readVehicle.txt file
-                with open("app/file/readVehicle.txt", "w") as file:
-                    file.write("")  # Clear the file by writing an empty string
             else:
                 print("No valid entry found for the provided RFID Tag.")
         except Exception as e:

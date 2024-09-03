@@ -4,16 +4,21 @@ from PyQt5.QtGui import QPixmap
 
 def create_image_label(parent):
     """Creates a QLabel with an image loaded from a predefined file."""
-    
+
     # Local image file path
-    image_path = "app/file/984320_OH1BPZ0.jpg"
+    image_path = "app/file/starlab.jpg"
     
     image_label = QLabel(parent)
+    
+    # Set fixed size for the image label
+    image_label.setFixedSize(400, 150)
+
+    # Load the image from the file
     pixmap = load_image_from_file(image_path)
 
     if not pixmap.isNull():
-        # Scale the image to fit within the parent, maintaining aspect ratio
-        pixmap = pixmap.scaled(parent.width(), parent.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        # Scale the image to fit within the fixed size of the label, maintaining aspect ratio
+        pixmap = pixmap.scaled(image_label.width(), image_label.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         image_label.setPixmap(pixmap)
         image_label.setAlignment(Qt.AlignCenter)
         image_label.setStyleSheet(parent.load_stylesheet('app/stylesheet/mainWindow/imageLabel.qss'))
