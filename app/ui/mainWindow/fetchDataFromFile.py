@@ -1,3 +1,4 @@
+from PyQt5.QtWidgets import QMessageBox
 from datetime import datetime
 from sqlalchemy.orm.exc import NoResultFound
 from app.config.refreshSession import create_session
@@ -142,6 +143,17 @@ def handle_exit_button_click(rfid_tag, vehicle_info, status_label, indicator_lab
                 record.dateOut = datetime.utcnow().strftime("%Y-%m-%d")
                 record.timeOut = datetime.utcnow().strftime("%H:%M:%S")
                 session.commit()
+
+                # Fetch the vehicle number from the form
+                vehicle_no = vehicle_info.get('vehicleNumberLeft').text()
+
+                # Show the success message box
+                msg_box = QMessageBox()
+                msg_box.setIcon(QMessageBox.Information)
+                msg_box.setWindowTitle("Success")
+                msg_box.setText(f"Vehicle no: {vehicle_no} exit successfully")
+                msg_box.setStandardButtons(QMessageBox.Ok)
+                msg_box.exec_()
 
                 # Clear all the text boxes
                 for key, textbox in vehicle_info.items():

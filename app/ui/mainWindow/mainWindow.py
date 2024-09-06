@@ -1,5 +1,5 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFormLayout, QFrame, QPushButton, QDialog
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QFormLayout, QFrame, QPushButton, QDialog, QMessageBox
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
 from .title_bar import create_title_bar
@@ -73,21 +73,20 @@ class FullScreenWindow(QWidget):
         main_layout.addLayout(button_container_layout)
 
         # Add the copyright notice below the buttons in two lines
-        copyright_label_line1 = QLabel("Copyright laws vary around the world, and there is no global version of copyright,", self)
-        copyright_label_line2 = QLabel("but many countries are part of the Starlabs Technologo Pvt. Ltd., which deals with protecting original works and the authors’ rights over them.", self)
+        copyright_label_line1 = QLabel("Copyright laws vary around the world, and there is no global version of copyright,but many countries are part of the Starlabs Technologo Pvt. Ltd., which deals with protecting.", self)
 
         # Center align the text
         copyright_label_line1.setAlignment(Qt.AlignCenter)
-        copyright_label_line2.setAlignment(Qt.AlignCenter)
 
         # Set font for the labels
-        font = QFont("Arial", 10)
+        font = QFont("Arial", 8)
         copyright_label_line1.setFont(font)
-        copyright_label_line2.setFont(font)
+
+        # Set font color to grey
+        copyright_label_line1.setStyleSheet("color: grey;")
 
         # Add the labels to the main layout
         main_layout.addWidget(copyright_label_line1)
-        main_layout.addWidget(copyright_label_line2)
 
         # After the window is fully loaded, update the RFID Tag
         QTimer.singleShot(1000, self.update_rfid_tag)
@@ -349,8 +348,20 @@ class FullScreenWindow(QWidget):
         """Slot function triggered when the exit button is clicked."""
         rfid_tag = self.rfid_input_left.text()  # Get the RFID tag from the left input (or right, they should be the same)
 
-        # Call the function from fetchDataFromFile.py
-        handle_exit_button_click(rfid_tag, self.vehicle_info, self.status_label, self.indicator_label, self)
+        # Assuming vehicle_no is fetched or entered somewhere in the form
+        vehicle_no = self.vehicle_info.get('vehicleNumberLeft').text()
+
+        # Call the function from fetchDataFromFile.py to handle database saving
+        success = handle_exit_button_click(rfid_tag, self.vehicle_info, self.status_label, self.indicator_label, self)
+
+        # If saving to the database is successful, show the message box
+        if success:
+            msg_box = QMessageBox()
+            msg_box.setIcon(QMessageBox.Information)
+            msg_box.setWindowTitle("Success")
+            msg_box.setText(f"Vehicle no: {vehicle_no} exit successfully")
+            msg_box.setStandardButtons(QMessageBox.Ok)
+            msg_box.exec_()
 
     def create_clear_button(self):
         """Creates and returns the clear button."""
@@ -373,7 +384,7 @@ class FullScreenWindow(QWidget):
         # Clear all the text boxes
         for key, textbox in self.vehicle_info.items():
             textbox.clear()
-        
+
         self.rfid_input_left.clear()
         self.rfid_input_right.clear()
 
@@ -381,9 +392,16 @@ class FullScreenWindow(QWidget):
         self.status_label.setText("Waiting...")
         self.indicator_label.setStyleSheet("background-color: grey; border-radius: 10px;")
 
-        # Clear the contents of the readVehicle.txt file
-        with open("app/file/readVehicle.txt", "w") as file:
-            file.write("")  # Clear the file by writing an empty string
+        # Disable the Open Barrier button
+        self.exit_button.setEnabled(False)
+        self.exit_button.setStyleSheet("""
+            QPushButton {
+                background-color: grey;
+                color: white;
+                border-radius: 10px;
+            }
+        """)
+
 
     def create_force_open_button(self):
         """Creates and returns the Force Open Barrier button."""
